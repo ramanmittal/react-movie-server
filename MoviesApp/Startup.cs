@@ -16,6 +16,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using MoviesApp.Middlewares;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.SpaServices;
+using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 
 namespace MoviesApp
 {
@@ -31,7 +37,7 @@ namespace MoviesApp
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllersWithViews(); 
+            services.AddControllersWithViews();
             services.AddDbContext<MovieContext>(optionbuilder =>
             {
                 optionbuilder.UseSqlServer(@"Data Source=.\sqlexpress;Initial Catalog=movie;Persist Security Info=True;User ID=raman;Password=asdf");
@@ -41,7 +47,8 @@ namespace MoviesApp
                 x.ValueLengthLimit = int.MaxValue;
                 x.MultipartBodyLengthLimit = int.MaxValue; // In case of multipart
             });
-            services.AddAuthentication(options=> {
+            services.AddAuthentication(options =>
+            {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
             })
             .AddJwtBearer(options =>
@@ -64,7 +71,7 @@ namespace MoviesApp
                 options.AddPolicy(name: "MyAllowSpecificOrigins",
                                   builder =>
                                   {
-                                      builder.WithOrigins("http://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+                                      builder.WithOrigins("http://localhost").AllowAnyHeader().AllowAnyMethod().AllowCredentials();
                                       //builder.AllowAnyMethod();
                                       //builder.AllowAnyHeader();
                                       //builder.AllowCredentials();
@@ -92,15 +99,37 @@ namespace MoviesApp
             app.UseCors("MyAllowSpecificOrigins");
             app.UseAuthentication();
             app.UseAuthorization();
-           
+
             //app.UseMiddleware<CorsMiddleware>();
-            
+            app.Use((context, next) =>
+            {
+                if (!context.Request.Path.ToString().StartsWith("/api"))
+                {
+                    context.Request.Path = "/api/home/index";
+                }
+                return next();
+            });
+            app.Use((context, next) =>
+            {
+                var endPoint = context.GetEndpoint();
+                if (!context.Request.Path.ToString().StartsWith("/api"))
+                {
+                    context.Request.Path = "/api/home/index";
+                }
+                return next();
+            });
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(
                     name: "default",
-                    pattern: "{controller=Home}/{action=Index}/{id?}");
+                    pattern: "api/{controller=Home}/{action=Index}/{id?}");
             });
+            
+            app.UseSpa(spabuilder=> {                
+                spabuilder.Options.DefaultPage = "/index.html";
+            });
+
+
         }
     }
 }
